@@ -13,7 +13,7 @@ using Microsoft.WindowsAzure.Storage;
 
 using System.Reactive.Linq;
 
-namespace WorkerRole1
+namespace WorkerRole2
 {
     public class WorkerRole : RoleEntryPoint
     {
