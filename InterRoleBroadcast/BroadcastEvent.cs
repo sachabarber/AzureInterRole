@@ -12,10 +12,8 @@ namespace InterRoleBroadcast
             this.Message = message;
         } 
 
-
         [DataMember]
         public string SenderInstanceId { get; private set; }
-
 
         [DataMember]
         public string Message { get; private set; } 

@@ -6,9 +6,13 @@ namespace InterRoleBroadcast
 {
     [ServiceContract(Name = "BroadcastServiceContract", Namespace = BroadcastNamespaces.ServiceContract)]
 
-    public interface IBroadcastServiceContract : IObservable<BroadcastEvent>
+    public interface IBroadcastServiceContract 
     {
         [OperationContract(IsOneWay = true)]
         void Publish(BroadcastEvent e);
+
+        [OperationContract]
+        IObservable<BroadcastEvent> ObtainStream();
+
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ServiceModel;
+using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
 using Microsoft.ServiceBus;
 
@@ -8,37 +9,46 @@ namespace InterRoleBroadcast
 {
     public class ServiceBusClient<T> where T : class, IClientChannel, IDisposable
     {
-        private readonly ChannelFactory<T> _channelFactory;
-        private readonly T _channel;
+        private ChannelFactory<T> _channelFactory;
+        private T _channel;
         private bool _disposed = false;
 
 
         public ServiceBusClient()
         {
 
+            CreateChannel();
 
+                   
+        }
 
+        public void CreateChannel()
+        {
             Uri address = ServiceBusEnvironment.CreateServiceUri("sb", EndpointInformation.ServiceNamespace, EndpointInformation.ServicePath);
 
-            NetEventRelayBinding binding = new NetEventRelayBinding(EndToEndSecurityMode.None, RelayEventSubscriberAuthenticationType.None);
+            NetTcpRelayBinding binding = new NetTcpRelayBinding(EndToEndSecurityMode.None, RelayClientAuthenticationType.None);
 
             TransportClientEndpointBehavior credentialsBehaviour = new TransportClientEndpointBehavior();
             credentialsBehaviour.TokenProvider =
               TokenProvider.CreateSharedAccessSignatureTokenProvider(EndpointInformation.KeyName, EndpointInformation.Key);
-
-            //TransportClientEndpointBehavior credentialsBehaviour = new TransportClientEndpointBehavior();
-            //credentialsBehaviour.CredentialType = TransportClientCredentialType.SharedSecret;
-            //credentialsBehaviour.Credentials.SharedSecret.IssuerName = EndpointInformation.IssuerName;
-            //credentialsBehaviour.Credentials.SharedSecret.IssuerSecret = EndpointInformation.IssuerSecret;
-
             ServiceEndpoint endpoint = new ServiceEndpoint(ContractDescription.GetContract(typeof(T)), binding, new EndpointAddress(address));
             endpoint.Behaviors.Add(credentialsBehaviour);
 
             _channelFactory = new ChannelFactory<T>(endpoint);
 
             _channel = _channelFactory.CreateChannel();
+            _channel.Faulted += Channel_Faulted;
+
         }
 
+        void Channel_Faulted(object sender, EventArgs e)
+        {
+            ICommunicationObject theChannel = (ICommunicationObject) sender;
+            theChannel.Faulted -= Channel_Faulted;
+            KillChannel(theChannel);
+            KillChannelFactory(_channelFactory);
+            CreateChannel();
+        }
 
 
         public T Client
@@ -68,6 +78,31 @@ namespace InterRoleBroadcast
         }
 
 
+        private void KillChannel(ICommunicationObject theChannel)
+        {
+            if (theChannel.State == CommunicationState.Opened)
+            {
+                theChannel.Close();
+            }
+            else
+            {
+                theChannel.Abort();
+            }
+        }
+
+
+        private void KillChannelFactory<T>(ChannelFactory<T> theChannelFactory)
+        {
+            if (theChannelFactory.State == CommunicationState.Opened)
+            {
+                theChannelFactory.Close();
+            }
+            else
+            {
+                theChannelFactory.Abort();
+            }
+        }
+
 
         public void Dispose(bool disposing)
         {
@@ -77,14 +112,7 @@ namespace InterRoleBroadcast
                 {
                     try
                     {
-                        if (_channel.State == CommunicationState.Opened)
-                        {
-                            _channel.Close();
-                        }
-                        else
-                        {
-                            _channel.Abort();
-                        }
+                        KillChannel(_channel);
                     }
                     catch 
                     {
@@ -94,14 +122,7 @@ namespace InterRoleBroadcast
 
                     try
                     {
-                        if (_channelFactory.State == CommunicationState.Opened)
-                        {
-                            _channelFactory.Close();
-                        }
-                        else
-                        {
-                            _channelFactory.Abort();
-                        }
+                        KillChannelFactory(_channelFactory);
                     }
                     catch
                     {

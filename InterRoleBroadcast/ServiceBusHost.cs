@@ -8,36 +8,45 @@ namespace InterRoleBroadcast
 {
     public class ServiceBusHost<T> where T : class
     {
-        private readonly ServiceHost _serviceHost;
+        private ServiceHost _serviceHost;
         private bool _disposed = false;
 
 
         public ServiceBusHost()
         {
+            CreateHost();
+        }
+
+
+        private void CreateHost()
+        {
             Uri address = ServiceBusEnvironment.CreateServiceUri("sb", EndpointInformation.ServiceNamespace, EndpointInformation.ServicePath);
 
-            NetEventRelayBinding binding = new NetEventRelayBinding(EndToEndSecurityMode.None, RelayEventSubscriberAuthenticationType.None);
+            NetTcpRelayBinding binding = new NetTcpRelayBinding(EndToEndSecurityMode.None, RelayClientAuthenticationType.None);
 
             TransportClientEndpointBehavior credentialsBehaviour = new TransportClientEndpointBehavior();
             credentialsBehaviour.TokenProvider =
               TokenProvider.CreateSharedAccessSignatureTokenProvider(EndpointInformation.KeyName, EndpointInformation.Key);
-
-
-            //credentialsBehaviour.TokenProvider = TokenProvider.CreateSharedAccessSignatureTokenProvider()
-            //credentialsBehaviour.TokenProvider = new TokenProvider()
-            //credentialsBehaviour.CredentialType = TransportClientCredentialType.SharedSecret;
-            //credentialsBehaviour.Credentials.SharedSecret.IssuerName = EndpointInformation.IssuerName;
-            //credentialsBehaviour.Credentials.SharedSecret.IssuerSecret = EndpointInformation.IssuerSecret;
-
             ServiceEndpoint endpoint = new ServiceEndpoint(ContractDescription.GetContract(typeof(T)), binding, new EndpointAddress(address));
             endpoint.Behaviors.Add(credentialsBehaviour);
 
             _serviceHost = new ServiceHost(Activator.CreateInstance(typeof(T)));
+            _serviceHost.Faulted += ServiceHost_Faulted;
 
             _serviceHost.Description.Endpoints.Add(endpoint);
 
             _serviceHost.Open();
         }
+
+        void ServiceHost_Faulted(object sender, EventArgs e)
+        {
+            ServiceHost host = (ServiceHost)sender;
+            host.Faulted -= ServiceHost_Faulted;
+            KillHost(host);
+            CreateHost();
+        }
+
+
 
 
 
@@ -57,6 +66,17 @@ namespace InterRoleBroadcast
             GC.SuppressFinalize(this);
         }
 
+        private void KillHost(ServiceHost theHost)
+        {
+            if (theHost.State == CommunicationState.Opened)
+            {
+                theHost.Close();
+            }
+            else
+            {
+                theHost.Abort();
+            }
+        }
 
 
         public void Dispose(bool disposing)
@@ -67,14 +87,7 @@ namespace InterRoleBroadcast
                 {
                     try
                     {
-                        if (_serviceHost.State == CommunicationState.Opened)
-                        {
-                            _serviceHost.Close();
-                        }
-                        else
-                        {
-                            _serviceHost.Abort();
-                        }
+                        KillHost(_serviceHost);
                     }
                     catch 
                     {
