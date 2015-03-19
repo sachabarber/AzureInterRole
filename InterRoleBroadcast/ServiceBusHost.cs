@@ -20,14 +20,20 @@ namespace InterRoleBroadcast
 
         private void CreateHost()
         {
-            Uri address = ServiceBusEnvironment.CreateServiceUri("sb", EndpointInformation.ServiceNamespace, EndpointInformation.ServicePath);
+            Uri address = ServiceBusEnvironment.CreateServiceUri("sb", 
+                EndpointInformation.ServiceNamespace, EndpointInformation.ServicePath);
 
-            NetTcpRelayBinding binding = new NetTcpRelayBinding(EndToEndSecurityMode.None, RelayClientAuthenticationType.None);
+            NetTcpRelayBinding binding = new NetTcpRelayBinding(
+                EndToEndSecurityMode.None, RelayClientAuthenticationType.None);
 
-            TransportClientEndpointBehavior credentialsBehaviour = new TransportClientEndpointBehavior();
+            TransportClientEndpointBehavior credentialsBehaviour = 
+                new TransportClientEndpointBehavior();
             credentialsBehaviour.TokenProvider =
-              TokenProvider.CreateSharedAccessSignatureTokenProvider(EndpointInformation.KeyName, EndpointInformation.Key);
-            ServiceEndpoint endpoint = new ServiceEndpoint(ContractDescription.GetContract(typeof(T)), binding, new EndpointAddress(address));
+              TokenProvider.CreateSharedAccessSignatureTokenProvider(
+              EndpointInformation.KeyName, EndpointInformation.Key);
+            ServiceEndpoint endpoint = new ServiceEndpoint(
+                ContractDescription.GetContract(typeof(T)), binding, 
+                new EndpointAddress(address));
             endpoint.Behaviors.Add(credentialsBehaviour);
 
             _serviceHost = new ServiceHost(Activator.CreateInstance(typeof(T)));

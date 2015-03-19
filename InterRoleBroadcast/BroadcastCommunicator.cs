@@ -18,13 +18,6 @@ namespace InterRoleBroadcast
             }
         }
 
-
-
-        //public IDisposable Subscribe(IObserver<BroadcastEvent> subscriber)
-        //{
-        //    return this.Subscriber.ServiceInstance.Subscribe(subscriber);
-        //}
-
         public IObservable<BroadcastEvent> BroadcastEventsStream
         {
             get { return this.Subscriber.ServiceInstance.ObtainStream(); }
